@@ -128,6 +128,7 @@ export enum Operator {
   VariableAssigner = 'VariableAssigner',
   VariableAggregator = 'VariableAggregator',
   File = 'File', // pipeline
+  DocumentMetadata = 'DocumentMetadata',
   Parser = 'Parser',
   Tokenizer = 'Tokenizer',
   GeneralChunker = 'GeneralChunker',

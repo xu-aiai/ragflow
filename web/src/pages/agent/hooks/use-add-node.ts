@@ -183,6 +183,7 @@ export const useInitializeOperatorParams = () => {
       [Operator.TavilyExtract]: initialTavilyExtractValues,
       [Operator.Placeholder]: {},
       [Operator.File]: {},
+      [Operator.DocumentMetadata]: {},
       [Operator.Parser]: buildInitialParserValues(defaultModelDictionary),
       [Operator.Tokenizer]: initialTokenizerValues,
       [Operator.TokenChunker]: initialTokenChunkerValues,

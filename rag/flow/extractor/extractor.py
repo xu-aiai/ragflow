@@ -23,6 +23,7 @@ import xxhash
 from agent.component.base import ComponentBase
 from agent.component.llm import LLM, LLMParam
 from common.chunk_order import TOC_CHUNK_ORDER_BASE, drop_parent_link
+from common.metadata_utils import update_metadata_to
 from rag.flow.base import ProcessBase, ProcessParamBase
 from rag.prompts.generator import run_toc_from_text
 
@@ -46,6 +47,14 @@ class ExtractorParam(ProcessParamBase, LLMParam):
             if not isinstance(config, dict) or type(config.get(key)) is not type(disabled) or config[key] != disabled:
                 return False
         return True
+
+
+def _merge_extracted_field(field_name, existing, generated):
+    """Keep independently produced metadata instead of replacing it."""
+    if field_name != "metadata":
+        return generated
+    base = deepcopy(existing) if isinstance(existing, dict) else {}
+    return update_metadata_to(base, generated)
 
 
 class Extractor(ProcessBase, LLM):
@@ -146,7 +155,12 @@ class Extractor(ProcessBase, LLM):
                     args[chunks_key] = ck.get("text") or ck.get("content_with_weight") or ""
                 msg, sys_prompt = self._sys_prompt_and_msg([], args)
                 msg.insert(0, {"role": "system", "content": sys_prompt})
-                ck[self._param.field_name] = await self._generate_async(msg)
+                generated = await self._generate_async(msg)
+                ck[self._param.field_name] = _merge_extracted_field(
+                    self._param.field_name,
+                    ck.get(self._param.field_name),
+                    generated,
+                )
                 prog += 1.0 / len(chunks)
                 if i % (len(chunks) // 100 + 1) == 1:
                     self.callback(prog, f"{i + 1} / {len(chunks)}")

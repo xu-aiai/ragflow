@@ -1783,7 +1783,7 @@ def docx_question_level(p, bull=-1):
 
 
 def concat_img(img1, img2):
-    from rag.utils.lazy_image import LazyImage, ensure_pil_image
+    from rag.utils.lazy_image import LazyImage, ensure_pil_image, stack_images_vertically
 
     # Same image must not stack with itself (the LazyImage branch would otherwise
     # concatenate its blob list); mirrors the PIL branch's same-reference guard.
@@ -1817,16 +1817,7 @@ def concat_img(img1, img2):
         if pixel_data1 == pixel_data2:
             return img1
 
-    width1, height1 = img1.size
-    width2, height2 = img2.size
-
-    new_width = max(width1, width2)
-    new_height = height1 + height2
-    new_image = Image.new("RGB", (new_width, new_height))
-
-    new_image.paste(img1, (0, 0))
-    new_image.paste(img2, (0, height1))
-    return new_image
+    return stack_images_vertically(img1, img2)
 
 
 def _build_cks(sections, delimiter):

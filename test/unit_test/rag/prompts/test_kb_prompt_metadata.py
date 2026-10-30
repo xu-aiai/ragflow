@@ -86,6 +86,31 @@ class TestKbPromptDocumentMetadata:
         assert "author: alice" in rendered[0]
         assert "year: 2026" in rendered[0]
 
+    @pytest.mark.p1
+    def test_retrieval_task_context_is_not_exposed_to_answer_model(self):
+        kbinfos = {
+            "chunks": [
+                {
+                    "id": "chunk-1",
+                    "content_with_weight": "每500小时更换",
+                    "docnm_kwd": "XE155D手册.docx",
+                    "retrieval_tasks": [
+                        {
+                            "query": "XE155D 发动机油更换周期",
+                            "models": ["XE155D"],
+                            "knowledge_types": ["保养"],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        rendered = kb_prompt(kbinfos, max_tokens=10000)
+
+        assert "Retrieval task:" not in rendered[0]
+        assert "XE155D 发动机油更换周期" not in rendered[0]
+        assert "每500小时更换" in rendered[0]
+
 
 @pytest.mark.p1
 class TestKbPromptTokenBudget:

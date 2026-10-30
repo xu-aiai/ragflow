@@ -2,6 +2,7 @@ import { Operator } from '@/constants/agent';
 import {
   buildPipelineNextOperators,
   isChunkerOperator,
+  isValidDocumentMetadataConnection,
   isSingleInstanceOperator,
   isValidGoPipelineConnection,
 } from './pipeline-connection';
@@ -95,6 +96,7 @@ describe('isSingleInstanceOperator', () => {
     expect(isSingleInstanceOperator(Operator.TokenChunker)).toBe(true);
     expect(isSingleInstanceOperator(Operator.TitleChunker)).toBe(true);
     expect(isSingleInstanceOperator(Operator.GeneralChunker)).toBe(true);
+    expect(isSingleInstanceOperator(Operator.DocumentMetadata)).toBe(true);
   });
 
   it('leaves multi-instance operators unchecked', () => {
@@ -151,5 +153,54 @@ describe('buildPipelineNextOperators', () => {
       Operator.TokenChunker,
       Operator.TitleChunker,
     ]);
+  });
+
+  it('offers filename metadata extraction only after chunk output on the Python pipeline', () => {
+    expect(
+      buildPipelineNextOperators(
+        Operator.TokenChunker,
+        false,
+        noOperator,
+      ).operators,
+    ).toContain(Operator.DocumentMetadata);
+    expect(
+      buildPipelineNextOperators(Operator.TokenChunker, true, noOperator)
+        .operators,
+    ).not.toContain(Operator.DocumentMetadata);
+    expect(
+      buildPipelineNextOperators(Operator.Parser, false, noOperator).operators,
+    ).not.toContain(Operator.DocumentMetadata);
+  });
+});
+
+describe('isValidDocumentMetadataConnection', () => {
+  it('accepts final chunk producers', () => {
+    expect(
+      isValidDocumentMetadataConnection(
+        Operator.TokenChunker,
+        Operator.DocumentMetadata,
+      ),
+    ).toBe(true);
+    expect(
+      isValidDocumentMetadataConnection(
+        Operator.Extractor,
+        Operator.DocumentMetadata,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects File and Parser outputs', () => {
+    expect(
+      isValidDocumentMetadataConnection(
+        Operator.File,
+        Operator.DocumentMetadata,
+      ),
+    ).toBe(false);
+    expect(
+      isValidDocumentMetadataConnection(
+        Operator.Parser,
+        Operator.DocumentMetadata,
+      ),
+    ).toBe(false);
   });
 });

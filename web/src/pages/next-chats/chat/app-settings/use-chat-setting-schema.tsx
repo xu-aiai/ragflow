@@ -27,6 +27,7 @@ export function useChatSettingSchema() {
     prologue: z.string().optional(),
     system: z.string().min(1, { message: t('systemMessage') }),
     refine_multiturn: z.boolean(),
+    query_decomposition: z.boolean().optional(),
     parameters: z
       .array(
         z.object({

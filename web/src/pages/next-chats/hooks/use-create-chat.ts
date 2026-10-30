@@ -30,6 +30,7 @@ export const useCreateChatDialog = () => {
         tts: false,
         system: t('chat.systemInitialValue'),
         refine_multiturn: false,
+        query_decomposition: false,
         use_kg: false,
         reasoning: false,
         parameters: [

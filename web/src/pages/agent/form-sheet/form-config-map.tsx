@@ -178,6 +178,9 @@ export const FormConfigMap = {
   [Operator.File]: {
     component: () => <></>,
   },
+  [Operator.DocumentMetadata]: {
+    component: () => <></>,
+  },
   [Operator.Parser]: {
     component: ParserForm,
   },

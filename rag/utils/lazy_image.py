@@ -3,7 +3,36 @@ from io import BytesIO
 
 from PIL import Image
 
-from rag.nlp import concat_img
+
+def flatten_to_rgb(img):
+    """Convert a PIL image to RGB, compositing transparency onto white."""
+    if not isinstance(img, Image.Image) or img.mode == "RGB":
+        return img
+
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        background = Image.new("RGB", rgba.size, (255, 255, 255))
+        background.paste(rgba, mask=rgba.getchannel("A"))
+        rgba.close()
+        return background
+
+    return img.convert("RGB")
+
+
+def stack_images_vertically(img1, img2):
+    """Stack two PIL images on a white RGB canvas without black transparency."""
+    flat1 = flatten_to_rgb(img1)
+    flat2 = flatten_to_rgb(img2)
+    width1, height1 = flat1.size
+    width2, height2 = flat2.size
+    canvas = Image.new("RGB", (max(width1, width2), height1 + height2), (255, 255, 255))
+    canvas.paste(flat1, (0, 0))
+    canvas.paste(flat2, (0, height1))
+    if flat1 is not img1:
+        flat1.close()
+    if flat2 is not img2:
+        flat2.close()
+    return canvas
 
 
 class LazyImage:
@@ -29,7 +58,7 @@ class LazyImage:
         res_img = None
         for blob in self._blobs:
             try:
-                image = Image.open(BytesIO(blob)).convert("RGB")
+                image = flatten_to_rgb(Image.open(BytesIO(blob)))
             except Exception as e:
                 logging.info(f"LazyImage: skip bad image blob: {e}")
                 continue
@@ -37,6 +66,8 @@ class LazyImage:
             if res_img is None:
                 res_img = image
                 continue
+
+            from rag.nlp import concat_img
 
             new_img = concat_img(res_img, image)
             if new_img is not res_img:
@@ -124,7 +155,7 @@ def open_image_for_processing(img, *, allow_bytes=False):
         return img.to_pil_detached(), True
     if allow_bytes and isinstance(img, (bytes, bytearray)):
         try:
-            pil = Image.open(BytesIO(img)).convert("RGB")
+            pil = flatten_to_rgb(Image.open(BytesIO(img)))
             return pil, True
         except Exception as e:
             logging.info(f"open_image_for_processing: bad bytes: {e}")

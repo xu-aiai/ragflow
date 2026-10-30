@@ -23,7 +23,7 @@ from PIL import Image
 
 
 from common.misc_utils import thread_pool_exec
-from rag.utils.lazy_image import open_image_for_processing
+from rag.utils.lazy_image import flatten_to_rgb, open_image_for_processing
 
 test_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAAA6ElEQVR4nO3QwQ3AIBDAsIP9d25XIC+EZE8QZc18w5l9O+AlZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBWYFZgVmBT+IYAHHLHkdEgAAAABJRU5ErkJggg=="
 test_image = base64.b64decode(test_image_base64)
@@ -54,8 +54,8 @@ async def image2id(d: dict, storage_put_func: partial, objname: str, bucket: str
         owned_images = [img] if close_after else []
         try:
             img.load()
-            if img.mode in ("RGBA", "P"):
-                converted = img.convert("RGB")
+            if img.mode != "RGB":
+                converted = flatten_to_rgb(img)
                 owned_images.append(converted)
                 img = converted
 

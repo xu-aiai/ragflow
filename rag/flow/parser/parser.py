@@ -68,6 +68,7 @@ from rag.flow.parser.utils import (
 )
 from rag.llm.cv_model import Base as VLM
 from rag.utils.base64_image import image2id
+from rag.utils.lazy_image import flatten_to_rgb
 
 # Row ceiling passed to ``ExcelParser.html`` for a spreadsheet sheet. It is
 # deliberately far beyond any real sheet: a sheet is emitted as ONE
@@ -1171,7 +1172,7 @@ class Parser(ProcessBase):
         conf = self._param.setups["image"]
         self.set_output("output_format", "json")
 
-        img = Image.open(io.BytesIO(blob)).convert("RGB")
+        img = flatten_to_rgb(Image.open(io.BytesIO(blob)))
 
         if conf["parse_method"] == "ocr":
             # use ocr, recognize chars only

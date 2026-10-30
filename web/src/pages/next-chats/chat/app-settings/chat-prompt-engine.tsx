@@ -232,6 +232,11 @@ export function ChatPromptEngine({
           label={t('chat.multiTurn')}
           tooltip={t('chat.multiTurnTip')}
         ></SwitchFormField>
+        <SwitchFormField
+          name={prefixName(prefix, 'prompt_config.query_decomposition')}
+          label={t('chat.queryDecomposition')}
+          tooltip={t('chat.queryDecompositionTip')}
+        ></SwitchFormField>
         <DynamicVariableForm
           name={prefixName(prefix, 'prompt_config.parameters')}
         ></DynamicVariableForm>
