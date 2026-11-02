@@ -826,6 +826,7 @@ export const RestrictedUpstreamMap = {
   [Operator.VariableAssigner]: [Operator.Begin],
   [Operator.VariableAggregator]: [Operator.Begin],
   [Operator.Parser]: [Operator.Begin], // pipeline
+  [Operator.DocumentMetadata]: [Operator.Begin],
   [Operator.GeneralChunker]: [Operator.Begin],
   [Operator.TokenChunker]: [Operator.Begin],
   [Operator.TitleChunker]: [Operator.Begin],
@@ -882,6 +883,7 @@ export const NodeMap = {
   [Operator.Placeholder]: 'placeholderNode',
   [Operator.File]: 'fileNode',
   [Operator.Parser]: 'parserNode',
+  [Operator.DocumentMetadata]: 'ragNode',
   [Operator.Tokenizer]: 'tokenizerNode',
   [Operator.GeneralChunker]: 'chunkerNode',
   [Operator.TokenChunker]: 'chunkerNode',
@@ -930,6 +932,7 @@ export const NoDebugOperatorsList = [
   Operator.IterationStart,
   Operator.File,
   Operator.Parser,
+  Operator.DocumentMetadata,
   Operator.Tokenizer,
   Operator.GeneralChunker,
   Operator.TokenChunker,
@@ -943,6 +946,7 @@ export const NoDebugOperatorsList = [
 export const NoCopyOperatorsList = [
   Operator.File,
   Operator.Parser,
+  Operator.DocumentMetadata,
   Operator.Tokenizer,
   Operator.GeneralChunker,
   Operator.TokenChunker,

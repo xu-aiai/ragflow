@@ -440,6 +440,7 @@ export const ChunkerOperators = [Operator.TokenChunker, Operator.TitleChunker];
 // chunkers are separate entries here (each blocks its own duplication) but
 // also share one slot: see the chunker group rule in buildPipelineNextOperators.
 export const SingleOperators = [
+  Operator.DocumentMetadata,
   Operator.Tokenizer,
   Operator.Compiler,
   Operator.GeneralChunker,

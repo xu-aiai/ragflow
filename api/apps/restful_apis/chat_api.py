@@ -108,6 +108,7 @@ _DEFAULT_PROMPT_CONFIG = {
     "quote": True,
     "tts": False,
     "refine_multiturn": True,
+    "query_decomposition": False,
 }
 _DEFAULT_DIRECT_CHAT_PROMPT_CONFIG = {
     "system": "",
@@ -117,6 +118,7 @@ _DEFAULT_DIRECT_CHAT_PROMPT_CONFIG = {
     "quote": False,
     "tts": False,
     "refine_multiturn": True,
+    "query_decomposition": False,
 }
 _DEFAULT_RERANK_MODELS = {"BAAI/bge-reranker-v2-m3", "maidalun1020/bce-reranker-base_v1"}
 _READONLY_FIELDS = {"id", "tenant_id", "created_by", "create_time", "create_date", "update_time", "update_date"}

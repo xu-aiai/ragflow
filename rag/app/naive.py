@@ -70,6 +70,7 @@ from rag.nlp import (
     tokenize_table,
 )
 from rag.utils.file_utils import extract_embed_file, extract_html, extract_links_from_docx, extract_links_from_pdf
+from rag.utils.lazy_image import flatten_to_rgb
 
 
 def _is_short_header(text, max_tokens=50):
@@ -1045,7 +1046,7 @@ class Markdown(MarkdownParser):
                         else:
                             raise ValueError(f"Exceeded {MAX_IMAGE_REDIRECTS} redirects fetching {url!r}")
                         if response.status_code == 200 and response.headers.get("Content-Type", "").startswith("image/"):
-                            img_obj = Image.open(BytesIO(response.content)).convert("RGB")
+                            img_obj = flatten_to_rgb(Image.open(BytesIO(response.content)))
                     finally:
                         # Always release the final/streamed response, including the
                         # non-image and redirect-cap paths where the body is unread.
@@ -1054,7 +1055,7 @@ class Markdown(MarkdownParser):
                 else:
                     local_path = Path(url)
                     if local_path.exists():
-                        img_obj = Image.open(url).convert("RGB")
+                        img_obj = flatten_to_rgb(Image.open(url))
                     else:
                         logging.warning(f"Local image file not found: {url}")
             except Exception as e:

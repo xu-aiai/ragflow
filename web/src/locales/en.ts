@@ -1229,6 +1229,9 @@ This auto-tagging feature enhances retrieval by adding another layer of domain-s
       multiTurn: 'Multi-turn optimization',
       multiTurnTip:
         'This optimizes user queries using context in a multi-round conversation. When enabled, it will consume additional LLM tokens.',
+      queryDecomposition: 'Compound question decomposition',
+      queryDecompositionTip:
+        'Splits a compound information need into at most three independent retrieval queries while retaining the original query as a safety search. This increases latency and LLM token usage.',
       howUseId: 'How to use chat ID?',
       description: 'Description of assistant',
       descriptionPlaceholder: "I'm a chat assistant.",
@@ -3563,6 +3566,9 @@ This process aggregates variables from multiple branches into a single variable 
       retrievalMemoryRequired: 'Please select memories first',
       tokenizerDescription:
         'Transforms text into the required data structure (e.g., vector embeddings for Embedding Search) depending on the chosen search method.',
+      documentMetadata: 'Document metadata',
+      documentMetadataDescription:
+        'Conservatively extracts brand, equipment type, model, manual code, and manual type from the filename without calling an LLM. Place it after a chunker or extractor and before the indexer.',
       generalChunkerDescription:
         'A general-purpose chunking method for most document types, with flexible control over chunk size, overlap, and context.',
       tokenChunker: 'Token Chunker',

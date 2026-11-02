@@ -32,6 +32,7 @@ import {
   LucideFileStack,
   LucideHeading,
   LucideListPlus,
+  Tags,
 } from 'lucide-react';
 import { Component } from 'react';
 import { Operator } from '../constants/agent';
@@ -92,6 +93,7 @@ export const LucideIconMap = {
   [Operator.Compiler]: Columns3Cog,
   [Operator.File]: LucideFile,
   [Operator.Parser]: LucideFilePlay,
+  [Operator.DocumentMetadata]: Tags,
   [Operator.Tokenizer]: LucideListPlus,
   [Operator.GeneralChunker]: LucideBlocks,
   [Operator.TokenChunker]: LucideBlocks,

@@ -17,6 +17,7 @@ export interface PromptConfig {
   quote: boolean;
   keyword: boolean;
   refine_multiturn: boolean;
+  query_decomposition?: boolean;
   use_kg: boolean;
   reasoning?: boolean;
   cross_languages?: Array<string>;

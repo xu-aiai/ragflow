@@ -19,6 +19,7 @@ from io import BytesIO
 from PIL import Image
 
 from common import settings
+from rag.utils.lazy_image import flatten_to_rgb
 
 IMAGE_UPDATE_MODE_APPEND = "append"
 IMAGE_UPDATE_MODE_REPLACE = "replace"
@@ -43,8 +44,8 @@ def store_chunk_image(bucket, name, image_binary, mode=IMAGE_UPDATE_MODE_APPEND)
     old_binary = settings.STORAGE_IMPL.get(bucket, name)
     old_img = Image.open(BytesIO(old_binary))
     new_img = Image.open(BytesIO(image_binary))
-    old_img = old_img.convert("RGB")
-    new_img = new_img.convert("RGB")
+    old_img = flatten_to_rgb(old_img)
+    new_img = flatten_to_rgb(new_img)
     width = max(old_img.width, new_img.width)
     height = old_img.height + new_img.height
     combined = Image.new("RGB", (width, height), (255, 255, 255))

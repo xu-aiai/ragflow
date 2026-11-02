@@ -15,8 +15,8 @@ export function isSingleInstanceOperator(operator: Operator): boolean {
 }
 
 export interface PipelineNextOperators {
-  // Operators offered in the flat top-level list (Parser, Tokenizer,
-  // Extractor, Compiler), minus the single-instance ones already on canvas.
+  // Operators offered in the flat top-level list, minus the single-instance
+  // ones already on canvas.
   operators: Operator[];
   // The chunker variants, offered only while the single chunker slot is free.
   chunkerOperators: Operator[];
@@ -48,6 +48,18 @@ export function buildPipelineNextOperators(
         }
       },
     );
+    // Filename metadata extraction is implemented by the Python pipeline. Do
+    // not offer a node that the Go executor cannot resolve.
+    const canFeedDocumentMetadata =
+      !!source &&
+      (isChunkerOperator(source) || source === Operator.Extractor);
+    if (
+      !isGoBackend &&
+      canFeedDocumentMetadata &&
+      !hasOperator(Operator.DocumentMetadata)
+    ) {
+      operators.push(Operator.DocumentMetadata);
+    }
     operators.push(Operator.Extractor);
   }
 
@@ -104,4 +116,16 @@ export function isValidGoPipelineConnection(
     return !isChunkerOperator(target);
   }
   return true;
+}
+
+/** Filename metadata must see final chunks; Parser/File output is too early and
+ * a later chunker would discard the attached document payload. */
+export function isValidDocumentMetadataConnection(
+  source: Operator,
+  target: Operator,
+): boolean {
+  if (target !== Operator.DocumentMetadata) {
+    return true;
+  }
+  return isChunkerOperator(source) || source === Operator.Extractor;
 }

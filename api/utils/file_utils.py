@@ -32,6 +32,7 @@ from PIL import Image
 # Local imports
 from api.constants import FILE_NAME_LEN_LIMIT, IMG_BASE64_PREFIX
 from api.db import FileType
+from rag.utils.lazy_image import flatten_to_rgb
 
 # Robustness and resource limits: reject oversized inputs to avoid DoS and OOM.
 MAX_BLOB_SIZE_THUMBNAIL = 50 * 1024 * 1024  # 50 MiB for thumbnail generation
@@ -129,8 +130,8 @@ def thumbnail_img(filename, blob):
         try:
             image = Image.open(BytesIO(blob))
             image.load()
-            if image.mode in ("RGBA", "P", "LA"):
-                image = image.convert("RGB")
+            if image.mode != "RGB":
+                image = flatten_to_rgb(image)
             image.thumbnail((30, 30))
             buffered = BytesIO()
             image.save(buffered, format="png")

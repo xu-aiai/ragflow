@@ -31,6 +31,7 @@ from common.parser_config_utils import normalize_layout_recognizer
 from common.string_utils import clean_markdown_block
 from deepdoc.vision import OCR
 from rag.nlp import attach_media_context, rag_tokenizer, tokenize
+from rag.utils.lazy_image import flatten_to_rgb
 
 _ocr = None
 
@@ -78,7 +79,7 @@ def chunk(filename, binary, tenant_id, lang, callback=None, **kwargs):
             callback(prog=-1, msg=str(e))
             raise
     else:
-        img = Image.open(io.BytesIO(binary)).convert("RGB")
+        img = flatten_to_rgb(Image.open(io.BytesIO(binary)))
         doc.update(
             {
                 "image": img,

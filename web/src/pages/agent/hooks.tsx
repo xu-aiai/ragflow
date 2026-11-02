@@ -11,7 +11,10 @@ import { Operator, RestrictedUpstreamMap } from './constant';
 import { useIsPipeline } from './hooks/use-is-pipeline';
 import useGraphStore, { RFState } from './store';
 import { buildCategorizeObjectFromList, replaceIdWithText } from './utils';
-import { isValidGoPipelineConnection } from './utils/pipeline-connection';
+import {
+  isValidDocumentMetadataConnection,
+  isValidGoPipelineConnection,
+} from './utils/pipeline-connection';
 
 const selector = (state: RFState) => ({
   nodes: state.nodes,
@@ -173,6 +176,12 @@ export const useValidateConnection = () => {
     (connection: Connection | Edge) => {
       // node cannot connect to itself
       const isSelfConnected = connection.target === connection.source;
+      const sourceOperator = getOperatorTypeFromId(
+        connection.source,
+      ) as Operator;
+      const targetOperator = getOperatorTypeFromId(
+        connection.target,
+      ) as Operator;
 
       // limit the connection between two nodes to only one connection line in one direction
       // const hasLine = edges.some(
@@ -188,11 +197,9 @@ export const useValidateConnection = () => {
         ]?.every((x) => x !== getOperatorTypeFromId(connection.target)) &&
         isSameNodeChild(connection) &&
         hasCanvasCycle(connection) &&
+        isValidDocumentMetadataConnection(sourceOperator, targetOperator) &&
         (!restrictPipelineTopology ||
-          isValidGoPipelineConnection(
-            getOperatorTypeFromId(connection.source) as Operator,
-            getOperatorTypeFromId(connection.target) as Operator,
-          ));
+          isValidGoPipelineConnection(sourceOperator, targetOperator));
       return ret;
     },
     [

@@ -77,6 +77,7 @@ export function ChatSettings({ hasSingleChatBox }: ChatSettingsProps) {
         keyword: false,
         tts: false,
         refine_multiturn: true,
+        query_decomposition: false,
         system: '',
         parameters: [],
         reasoning: false,

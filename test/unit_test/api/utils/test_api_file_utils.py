@@ -126,6 +126,20 @@ class TestThumbnailImg:
         huge = b"x" * (MAX_BLOB_SIZE_THUMBNAIL + 1)
         assert thumbnail_img("x.pdf", huge) is None
 
+    def test_transparent_image_uses_white_background(self):
+        from io import BytesIO
+
+        from PIL import Image
+
+        source = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        source_buffer = BytesIO()
+        source.save(source_buffer, format="PNG")
+
+        thumbnail_bytes = thumbnail_img("transparent.png", source_buffer.getvalue())
+        thumbnail_image = Image.open(BytesIO(thumbnail_bytes)).convert("RGB")
+
+        assert thumbnail_image.getpixel((0, 0)) == (255, 255, 255)
+
 
 class TestThumbnail:
     """thumbnail() wraps thumbnail_img and returns base64 or empty string."""
