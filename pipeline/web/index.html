@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>XC975-EV · 数据抽取工作台</title>
+  <link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none"><path d="M8 7h16v5H13v4h11v9H8v-5h11v-4H8V7Z" fill="currentColor"/></svg>
+        </span>
+        <span class="brand-copy">
+          <span class="brand-product">XC975-EV</span>
+          <span class="brand-name">数据抽取工作台</span>
+        </span>
+      </div>
+      <div class="environment"><span class="environment-dot"></span>本地解析环境</div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar" aria-label="运行设置">
+        <section class="setup-section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">NEW RUN</span>
+              <h2>解析新手册</h2>
+            </div>
+          </div>
+          <form id="run-form">
+            <div class="field">
+              <label for="file">源手册</label>
+              <select id="file" required></select>
+            </div>
+            <div class="field">
+              <label for="doc">文档类型</label>
+              <select id="doc">
+                <option value="A">A · 操作与保养手册</option>
+                <option value="B">B · 维修保养手册</option>
+                <option value="C">C · EU 操保手册</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="variant">适用变体</label>
+                <input id="variant" value="国内干桥" autocomplete="off">
+              </div>
+              <div class="field field-version">
+                <label for="version">手册版本</label>
+                <input id="version" value="202608" inputmode="numeric" autocomplete="off">
+              </div>
+            </div>
+            <button id="run-btn" class="primary-button" type="submit">
+              <svg class="button-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 5 7 5-7 5V5Z" fill="currentColor"/></svg>
+              <span>开始解析</span>
+            </button>
+          </form>
+        </section>
+
+        <section class="history-section">
+          <label class="history-label" for="history">
+            <span>历史运行</span>
+          </label>
+          <select id="history">
+            <option value="">选择一次运行记录</option>
+          </select>
+        </section>
+      </aside>
+
+      <main class="main-content">
+        <section class="process-section" aria-label="文档解析流程">
+          <div class="process-heading">
+            <span id="run-status" class="status-badge neutral">等待运行</span>
+            <button id="follow-btn" class="compare-button follow-button" type="button" hidden>跟随最新阶段</button>
+          </div>
+          <nav id="stepper" class="stepper" aria-label="文档解析阶段"></nav>
+        </section>
+
+        <section id="stage-view" class="stage-view" aria-live="polite">
+          <div class="empty-state">
+            <div class="empty-illustration" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none"><path d="M14 5h14l8 8v30H14V5Z" stroke="currentColor" stroke-width="1.5"/><path d="M28 5v9h8M20 23h10M20 29h10M20 35h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 12v27" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <h1>数据抽取工作台</h1>
+            <div class="empty-features"><span>逐阶段快照</span><span>结构化结果</span><span>人工审核清单</span></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/web/app.js"></script>
+</body>
+</html>

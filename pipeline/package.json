@@ -1,0 +1,9 @@
+{
+  "name": "xc975-pipeline-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "XC975-EV 数据抽取工作台",
+  "scripts": {
+    "dev": "node dev.mjs"
+  }
+}
