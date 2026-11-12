@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .audit import AuditLog
 from .docmodel import parse_docx
-from .images import extract_images
+from .images import extract_images, image_dimensions
 from .numbering import cross_check_toc, extract_toc, inject_numbers
 from .package import package
 from .products.fault_codes import extract_fault_codes
@@ -30,7 +30,10 @@ def run(input_path: str, doc_code: str, variant: str, version: str, out_dir: str
         audit.add("目录交叉验证", msg)
     pkg_dir = Path(out_dir) / f"{doc_code}_{version}"
     image_files = extract_images(doc, elements, pkg_dir / "img", doc_code, audit, img_width)
-    sections = build_tree(doc_code, elements, audit, image_files, literal=(mode == "literal"))
+    sections = build_tree(
+        doc_code, elements, audit, image_files, literal=(mode == "literal"),
+        image_sizes=image_dimensions(pkg_dir / "img", image_files),
+    )
     fault_codes = extract_fault_codes(elements, doc_code, variant, audit)
     rules = extract_rules(elements, doc_code, variant, audit)
     package(pkg_dir, doc_code, variant, version, sections, fault_codes, rules)

@@ -899,7 +899,18 @@ function appendParaParts(parent, parts, fallback = "") {
       image.src = `/runs/${currentRun}/img/${encodeURIComponent(part.file)}`;
       image.alt = "原文行内图片";
       image.loading = "lazy";
+      if (part.width && part.height) {
+        image.width = part.width;
+        image.height = part.height;
+      }
       parent.appendChild(image);
+    } else if (part.bold || part.italic || part.underline || part.vert_align) {
+      const tag = part.vert_align === "superscript" ? "sup" : part.vert_align === "subscript" ? "sub" : part.bold ? "strong" : part.italic ? "em" : "span";
+      const text = el(tag, "inline-format", part.text || "");
+      if (part.bold && tag !== "strong") text.style.fontWeight = "650";
+      if (part.italic && tag !== "em") text.style.fontStyle = "italic";
+      if (part.underline) text.style.textDecoration = "underline";
+      parent.appendChild(text);
     } else {
       parent.appendChild(document.createTextNode(part.text || ""));
     }
@@ -1232,18 +1243,30 @@ function renderManualStage(view, d) {
 function renderManualReader(root) {
   root.innerHTML = "";
   const toc = el("aside", "manual-reader-toc");
-  toc.appendChild(el("div", "manual-reader-toc-title", "手册目录"));
+  const tocHeader = el("div", "manual-reader-toc-title");
+  const tocHeading = el("div", "manual-reader-toc-heading");
+  tocHeading.append(
+    el("span", "manual-reader-toc-label", "手册目录"),
+    el("span", "manual-reader-toc-count", `${manualReaderTopics.length} 节`),
+  );
+  tocHeader.appendChild(tocHeading);
+  const tocActions = el("div", "manual-reader-toc-actions");
+  const expandAll = el("button", "manual-reader-toc-action", "全部展开");
+  const collapseAll = el("button", "manual-reader-toc-action", "全部折叠");
+  expandAll.type = collapseAll.type = "button";
+  expandAll.onclick = () => root.querySelectorAll("details.manual-reader-toc-group").forEach(group => { group.open = true; });
+  collapseAll.onclick = () => root.querySelectorAll("details.manual-reader-toc-group").forEach(group => { group.open = false; });
+  tocActions.append(expandAll, collapseAll);
+  tocHeader.appendChild(tocActions);
+  toc.appendChild(tocHeader);
   const tocList = el("div", "manual-reader-toc-list");
+  const groups = new Map();
   manualReaderTopics.forEach((topic, index) => {
-    const shownNo = topic.显示章节号 || topic.章节号;
-    const item = el("button", "manual-reader-toc-item", `${esc(shownNo ? `${shownNo} ` : "")}${esc(topic.标题)}`);
-    item.type = "button";
-    item.title = topic.面包屑 || topic.标题;
-    item.style.paddingLeft = `${14 + Math.max(0, (topic.层级 || 1) - 1) * 14}px`;
-    item.dataset.index = index;
-    item.onclick = () => focusManualTopic(root, index);
-    tocList.appendChild(item);
+    const parent = topic.parent || null;
+    if (!groups.has(parent)) groups.set(parent, []);
+    groups.get(parent).push({ topic, index });
   });
+  appendManualTocItems(tocList, groups, null, 0, new Set());
   toc.appendChild(tocList);
 
   const main = el("main", "manual-reader-main");
@@ -1275,6 +1298,50 @@ function renderManualReader(root) {
   updateManualReaderControls(root);
 }
 
+function appendManualTocItems(parent, groups, parentId, depth, ancestors) {
+  for (const { topic, index } of groups.get(parentId) || []) {
+    const shownNo = topic.显示章节号 || topic.章节号;
+    const item = el("button", "manual-reader-toc-item");
+    if (shownNo) item.appendChild(el("span", "manual-reader-toc-number", String(shownNo)));
+    item.appendChild(el("span", "manual-reader-toc-text", topic.标题 || ""));
+    item.setAttribute("aria-label", `${shownNo ? `${shownNo} ` : ""}${topic.标题 || ""}`);
+    item.type = "button";
+    item.title = topic.面包屑 || topic.标题;
+    item.style.paddingLeft = `${12 + depth * 12}px`;
+    item.dataset.index = index;
+    item.onclick = event => {
+      event.preventDefault();
+      event.stopPropagation();
+      focusManualTopic(parent.closest(".manual-reader") || parent, index);
+    };
+    const id = topic.section_id;
+    if (groups.has(id) && !ancestors.has(id)) {
+      const branch = el("details", "manual-reader-toc-branch manual-reader-toc-group");
+      branch.open = true;
+      const summary = el("summary", "manual-reader-toc-summary");
+      const toggle = el("button", "manual-reader-toc-toggle");
+      toggle.type = "button";
+      toggle.setAttribute("aria-label", `折叠 ${topic.标题 || "章节"}`);
+      toggle.setAttribute("aria-expanded", "true");
+      toggle.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        branch.open = !branch.open;
+      };
+      branch.ontoggle = () => {
+        toggle.setAttribute("aria-label", `${branch.open ? "折叠" : "展开"} ${topic.标题 || "章节"}`);
+        toggle.setAttribute("aria-expanded", String(branch.open));
+      };
+      summary.append(toggle, item);
+      branch.appendChild(summary);
+      parent.appendChild(branch);
+      appendManualTocItems(branch, groups, id, depth + 1, new Set(ancestors).add(id));
+    } else {
+      parent.appendChild(item);
+    }
+  }
+}
+
 function normalizeManualTopics(topics) {
   const tocIndex = topics.findIndex(topic => (topic.标题 || "").trim() === "目录");
   if (tocIndex > 0) {
@@ -1296,7 +1363,7 @@ function normalizeManualTopics(topics) {
     const numericLevel = /^\d+(?:\.\d+)*$/.test(chapterNo)
       ? chapterNo.split(".").length
       : null;
-    if (numericLevel !== null && topic.层级 !== numericLevel) {
+    if (topic.层级 == null && numericLevel !== null) {
       topic = { ...topic, 层级: numericLevel };
     }
     const simpleNumber = topic.章节号 && !String(topic.章节号).includes(".");
@@ -1413,10 +1480,16 @@ function blockToDitaJson(b) {
         el: "p",
         parts: b.parts.map(part => part.type === "image"
           ? { el: "image", href: `img/${part.file}` }
-          : { el: "text", text: part.text }),
+          : {
+            el: "text", text: part.text,
+            ...(part.bold ? { bold: true } : {}),
+            ...(part.italic ? { italic: true } : {}),
+            ...(part.underline ? { underline: true } : {}),
+            ...(part.vert_align ? { vert_align: part.vert_align } : {}),
+          }),
       } : { el: "p", text: b.text };
     case "warning":
-      return { el: "note", type: NOTE_TYPE[b.level] || "notice", text: b.text };
+      return { el: "note", type: NOTE_TYPE[b.level] || "notice", text: [b.text, ...(b.items || [])].filter(Boolean).join("\n") };
     case "list":
       return { el: "ul", items: (b.items || []).map(t => ({ el: "li", text: t })) };
     case "steps":
@@ -1424,12 +1497,13 @@ function blockToDitaJson(b) {
     case "image":
       return {
         el: "fig",
-        title: b.图号 || "",
+        title: captionText(b.图号, b.题注),
         image: { href: `img/${b.file}`, alt: b.题注 || b.图号 || "" },
       };
     case "table":
       return {
-        el: "simpletable", sthead: b.header || [], strow: b.rows || [],
+        el: "simpletable", title: [b.表号, b.题注].filter(Boolean).join(" "),
+        sthead: b.header || [], strow: b.rows || [],
         cell_images: b.cell_images || [], col_spans: b.col_spans || [], row_spans: b.row_spans || [],
       };
     default:
@@ -1485,17 +1559,50 @@ function treeNode(node) {
   return det;
 }
 
+function captionText(number, caption) {
+  if (!caption) return number || "";
+  if (number && caption.replace(/\s+/g, "").startsWith(number)) return caption;
+  return [number, caption].filter(Boolean).join(" ");
+}
+
+function openManualImage(source) {
+  let dialog = document.getElementById("manual-image-dialog");
+  if (!dialog) {
+    dialog = el("dialog", "manual-image-dialog");
+    dialog.id = "manual-image-dialog";
+    const close = el("button", "manual-image-close", "关闭");
+    close.type = "button";
+    close.onclick = () => dialog.close();
+    const image = el("img", "manual-image-full");
+    dialog.append(close, image);
+    dialog.onclick = event => {
+      if (event.target === dialog) dialog.close();
+    };
+    document.body.appendChild(dialog);
+  }
+  const image = dialog.querySelector(".manual-image-full");
+  image.src = source.src;
+  image.alt = source.alt;
+  dialog.showModal();
+}
+
 function blockView(b) {
   const tag = `<span class="el-tag">${BLOCK_EL[b.type] || b.type}</span>`;
   switch (b.type) {
     case "para": {
-      const view = el("p", "blk para", tag);
+      const view = el(b.role === "subheading" ? "h5" : "p", `blk para${b.role === "subheading" ? " operation-heading" : ""}`, tag);
       appendParaParts(view, b.parts, b.text);
       return view;
     }
     case "warning": {
       const cls = { 注意: "w-note", 警告: "w-warn", 危险: "w-danger" }[b.level] || "w-note";
-      return el("div", "blk warnbox " + cls, `${tag}<b>${esc(b.level)}</b>${esc(b.text)}`);
+      const box = el("section", "blk warnbox " + cls);
+      box.appendChild(el("div", "warning-heading", `${tag}<span>${esc(b.level)}</span>`));
+      if (b.text) box.appendChild(el("p", "warning-text", esc(b.text)));
+      if (b.items?.length) {
+        box.appendChild(el("ol", "steps warning-steps", b.items.map(i => `<li>${esc(i)}</li>`).join("")));
+      }
+      return box;
     }
     case "list":
       return el("ul", "blk list", b.items.map(i => `<li>${esc(i)}</li>`).join(""));
@@ -1507,8 +1614,24 @@ function blockView(b) {
       img.src = `/runs/${currentRun}/img/${encodeURIComponent(b.file)}`;
       img.alt = b.题注 || b.图号 || "解析图片";
       img.loading = "lazy";
+      if (b.width && b.height) {
+        img.width = b.width;
+        img.height = b.height;
+      }
+      img.tabIndex = 0;
+      img.setAttribute("role", "button");
+      img.setAttribute("aria-label", `放大图片：${img.alt}`);
+      img.onclick = () => openManualImage(img);
+      img.onkeydown = event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openManualImage(img);
+        }
+      };
       fig.appendChild(img);
-      fig.appendChild(el("figcaption", "", `${tag}${esc(b.图号 || "")} ${esc(b.题注 || "")}`));
+      if (b.图号 || b.题注) {
+        fig.appendChild(el("figcaption", "", `${tag}${esc(captionText(b.图号, b.题注))}`));
+      }
       return fig;
     }
     case "table": {
@@ -1542,8 +1665,11 @@ function blockView(b) {
         tbl.appendChild(tr);
       });
       wrap.appendChild(tbl);
-      const box = el("div", "blk");
+      const box = el("div", "blk table-block");
       box.appendChild(el("div", "", tag));
+      if (b.表号 || b.题注) {
+        box.appendChild(el("div", "manual-table-caption", esc([b.表号, b.题注].filter(Boolean).join(" "))));
+      }
       box.appendChild(wrap);
       return box;
     }

@@ -78,6 +78,78 @@ def test_inline_image_stays_between_text_parts(tmp_path):
     ]
 
 
+def test_inline_formatting_is_preserved(tmp_path):
+    from docx import Document
+
+    doc = Document()
+    doc.add_heading("格式", level=1)
+    paragraph = doc.add_paragraph("普通")
+    bold = paragraph.add_run("粗体")
+    bold.bold = True
+    italic = paragraph.add_run("斜体")
+    italic.italic = True
+    superscript = paragraph.add_run("上标")
+    superscript.font.superscript = True
+    subscript = paragraph.add_run("下标")
+    subscript.font.subscript = True
+    path = tmp_path / "formatting.docx"
+    doc.save(str(path))
+
+    elements, _ = parse_docx(str(path))
+    inject_numbers(elements, "auto")
+    sections = build_tree("A", elements, AuditLog())
+
+    assert [
+        (part.text, part.bold, part.italic, part.vert_align)
+        for part in sections[0].blocks[0].parts
+    ] == [
+        ("普通", False, False, None),
+        ("粗体", True, False, None),
+        ("斜体", False, True, None),
+        ("上标", False, False, "superscript"),
+        ("下标", False, False, "subscript"),
+    ]
+
+
+def test_captions_warnings_and_operation_headings_are_semantic_blocks():
+    from xc975_pipeline.docmodel import Table
+
+    elements = [
+        Element("para", 0, para=Para(style="Heading 1", text="1 驱动桥"), heading_level=1, 编号="1"),
+        Element("para", 1, para=Para(image_rids=["r1"])),
+        Element("para", 2, para=Para(text="图1.2 驱动桥结构")),
+        Element("para", 3, para=Para(text="表1.3 紧固参数")),
+        Element("table", 4, table=Table(grid=[["项目", "值"], ["扭矩", "10 Nm"]])),
+        Element("para", 5, para=Para(text="★ 注意：")),
+        Element("para", 6, para=Para(text="1）拆卸防护罩")),
+        Element("para", 7, para=Para(text="2）安装防护罩")),
+        Element("para", 8, para=Para(text="★ 放出桥内的润滑油")),
+    ]
+
+    sections = build_tree("B", elements, AuditLog(), {"r1": "drive.png"}, literal=True)
+    blocks = sections[0].blocks
+
+    assert [block.type for block in blocks] == ["image", "table", "warning", "para"]
+    assert blocks[0].图号 == "图1.2" and blocks[0].题注 == "图1.2 驱动桥结构"
+    assert blocks[1].表号 == "表1.3" and blocks[1].题注 == "紧固参数"
+    assert blocks[2].level == "注意" and blocks[2].items == ["拆卸防护罩", "安装防护罩"]
+    assert blocks[3].role == "subheading" and blocks[3].text == "放出桥内的润滑油"
+
+
+def test_lettered_caption_is_split_across_following_images():
+    elements = [
+        Element("para", 0, para=Para(style="Heading 1", text="5 扭矩"), heading_level=1, 编号="5"),
+        Element("para", 1, para=Para(text="★ 图A                         ★ 图B")),
+        Element("para", 2, para=Para(image_rids=["r1", "r2"])),
+    ]
+
+    sections = build_tree("B", elements, AuditLog(), {"r1": "a.png", "r2": "b.png"}, literal=True)
+
+    assert [block.type for block in sections[0].blocks] == ["image", "image"]
+    assert [block.图号 for block in sections[0].blocks] == ["图A", "图B"]
+    assert [block.题注 for block in sections[0].blocks] == ["图A", "图B"]
+
+
 def test_tables_become_table_blocks(manual_a, tmp_path):
     sections, _, _ = _prepare(manual_a, tmp_path)
     s339 = next(s for s in sections if s.section_id == "A-3.3.5")
@@ -88,14 +160,17 @@ def test_tables_become_table_blocks(manual_a, tmp_path):
     assert any(b.type == "table" for b in s310.blocks)
 
 
-def test_duplicate_section_id_goes_to_audit(tmp_path):
-    """B 手册字面编号撞车 → section_id 重复进审核清单（工作台树渲染依赖该数据防环）。"""
+def test_duplicate_literal_numbers_get_unique_ids_and_correct_parents(tmp_path):
     from docx import Document
 
     doc = Document()
-    doc.add_heading("1 概述", level=1)
-    doc.add_heading("1.1 液压系统", level=2)
-    doc.add_heading("1.1 传动系统", level=2)  # 字面编号撞车
+    doc.add_heading("1 电气系统", level=1)
+    doc.add_heading("1.2 电机", level=2)
+    doc.add_heading("2 传动系统", level=1)
+    doc.add_heading("2.1 驱动桥", level=2)
+    doc.add_heading("2.1.5 拆装说明", level=3)
+    doc.add_heading("§1.2 拆卸轮边减速器", level=3)
+    doc.add_heading("§1.2.1 拆卸轮边端盖", level=4)
     path = tmp_path / "dup.docx"
     doc.save(str(path))
 
@@ -104,8 +179,10 @@ def test_duplicate_section_id_goes_to_audit(tmp_path):
     audit = AuditLog()
     sections = build_tree("B", elements, audit, {}, literal=True)
 
-    assert sum(1 for s in sections if s.section_id == "B-1.1") == 2
-    assert any("section_id 重复" in e["说明"] and "B-1.1" in e["说明"] for e in audit.entries)
+    assert len({s.section_id for s in sections}) == len(sections)
+    assert sections[-2].parent == sections[4].section_id
+    assert sections[-1].parent == sections[-2].section_id
+    assert any("章节号重复" in e["说明"] and "B-1.2" in e["说明"] for e in audit.entries)
 
 
 def _split_paragraph_elements():

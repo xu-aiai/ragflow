@@ -29,16 +29,23 @@ class AnchoredRecord(BaseModel):
 class ParaTextPart(BaseModel):
     type: Literal["text"] = "text"
     text: str
+    bold: bool = False
+    italic: bool = False
+    underline: bool = False
+    vert_align: Literal["superscript", "subscript"] | None = None
 
 
 class ParaImagePart(BaseModel):
     type: Literal["image"] = "image"
     file: str
+    width: int | None = None
+    height: int | None = None
 
 
 class ParaBlock(BaseModel):
     type: Literal["para"] = "para"
     text: str
+    role: Literal["body", "subheading"] = "body"
     parts: list[ParaTextPart | ParaImagePart] = Field(default_factory=list)
     src: list[int] = Field(default_factory=list)  # 来源元素 ID（阶段 1 版面流）
 
@@ -46,6 +53,8 @@ class ParaBlock(BaseModel):
 class ImageBlock(BaseModel):
     type: Literal["image"] = "image"
     file: str
+    width: int | None = None
+    height: int | None = None
     图号: str | None = None
     题注: str | None = None
     src: list[int] = Field(default_factory=list)
@@ -55,6 +64,8 @@ class TableBlock(BaseModel):
     type: Literal["table"] = "table"
     header: list[str] = Field(default_factory=list)
     rows: list[list[str]] = Field(default_factory=list)
+    表号: str | None = None
+    题注: str | None = None
     cell_images: list[list[list[str]]] = Field(default_factory=list)
     col_spans: list[list[int]] = Field(default_factory=list)
     row_spans: list[list[int]] = Field(default_factory=list)
@@ -65,6 +76,7 @@ class WarningBlock(BaseModel):
     type: Literal["warning"] = "warning"
     level: Literal["注意", "警告", "危险"]
     text: str
+    items: list[str] = Field(default_factory=list)
     src: list[int] = Field(default_factory=list)
 
 

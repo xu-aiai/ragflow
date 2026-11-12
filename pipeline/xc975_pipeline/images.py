@@ -62,6 +62,21 @@ def extract_images(doc, elements, img_dir, doc_code: str, audit, target_width: i
     return mapping
 
 
+def image_dimensions(img_dir, image_files: dict[str, str]) -> dict[str, dict[str, int]]:
+    sizes = {}
+    try:
+        from PIL import Image
+    except ImportError:
+        return sizes
+    for name in set(image_files.values()):
+        try:
+            with Image.open(Path(img_dir) / name) as img:
+                sizes[name] = {"width": img.width, "height": img.height}
+        except OSError:
+            continue
+    return sizes
+
+
 def cell_image_files(table, image_files: dict[str, str]) -> list[list[list[str]]]:
     return [
         [
@@ -72,10 +87,35 @@ def cell_image_files(table, image_files: dict[str, str]) -> list[list[list[str]]
     ]
 
 
+def _trim_white_border(img, padding: int = 12):
+    from PIL import Image
+
+    rgba = img.convert("RGBA")
+    background = Image.new("RGBA", img.size, (255, 255, 255, 255))
+    background.alpha_composite(rgba)
+    mask = background.convert("L").point(lambda value: 255 if value < 245 else 0)
+    bbox = mask.getbbox()
+    if not bbox:
+        return img
+    left = max(0, bbox[0] - padding)
+    top = max(0, bbox[1] - padding)
+    right = min(img.width, bbox[2] + padding)
+    bottom = min(img.height, bbox[3] + padding)
+    if (left, top, right, bottom) == (0, 0, img.width, img.height):
+        return img
+    return img.crop((left, top, right, bottom))
+
+
 def _save(img_dir: Path, stem: str, ext: str, blob: bytes, target_width: int, audit) -> str:
     if ext in _VECTOR_EXTS:
         png = _convert_vector(img_dir, stem, ext, blob)
         if png:
+            try:
+                from PIL import Image
+            except ImportError:
+                return png
+            out = img_dir / png
+            _trim_white_border(Image.open(out)).save(out)
             return png
         audit.add("图片", f"{stem}{ext} 为矢量格式，需在服务器经 LibreOffice 转 PNG")
         (img_dir / f"{stem}{ext}").write_bytes(blob)
@@ -86,7 +126,7 @@ def _save(img_dir: Path, stem: str, ext: str, blob: bytes, target_width: int, au
         audit.add("图片", f"{stem}{ext} 未缩放（Pillow 缺失）")
         (img_dir / f"{stem}{ext}").write_bytes(blob)
         return f"{stem}{ext}"
-    img = Image.open(BytesIO(blob))
+    img = _trim_white_border(Image.open(BytesIO(blob)))
     if img.width > target_width:
         ratio = target_width / img.width
         img = img.resize((target_width, max(1, round(img.height * ratio))))

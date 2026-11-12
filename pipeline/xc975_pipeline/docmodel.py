@@ -73,6 +73,10 @@ class ParaPart:
     kind: str  # "text" | "image"
     text: str = ""
     rid: str = ""
+    bold: bool = False
+    italic: bool = False
+    underline: bool = False
+    vert_align: str | None = None
 
 
 @dataclass
@@ -130,34 +134,57 @@ def _image_rids(node) -> list[str]:
 def _para_parts(p: Paragraph) -> list[ParaPart]:
     parts: list[ParaPart] = []
 
-    def append_text(text: str) -> None:
+    def run_style(run) -> dict:
+        rpr = run.find(qn("w:rPr"))
+        if rpr is None:
+            return {}
+
+        def enabled(tag):
+            node = rpr.find(qn(tag))
+            return node is not None and node.get(qn("w:val"), "1") not in ("0", "false", "off")
+
+        vert = rpr.find(qn("w:vertAlign"))
+        return {
+            "bold": enabled("w:b"),
+            "italic": enabled("w:i"),
+            "underline": enabled("w:u"),
+            "vert_align": vert.get(qn("w:val")) if vert is not None else None,
+        }
+
+    def append_text(text: str, style: dict) -> None:
         if not text:
             return
-        if parts and parts[-1].kind == "text":
-            parts[-1].text += text
+        previous = parts[-1] if parts else None
+        if previous and previous.kind == "text" and all(
+            getattr(previous, key) == value for key, value in style.items()
+        ):
+            previous.text += text
         else:
-            parts.append(ParaPart(kind="text", text=text))
+            parts.append(ParaPart(kind="text", text=text, **style))
 
-    def walk(node) -> None:
+    def walk(node, style=None) -> None:
+        style = style or {"bold": False, "italic": False, "underline": False, "vert_align": None}
         for child in node.iterchildren():
             if child.tag == qn("w:t"):
-                append_text(child.text or "")
+                append_text(child.text or "", style)
             elif child.tag == qn("w:tab"):
-                append_text("\t")
+                append_text("\t", style)
             elif child.tag in (qn("w:br"), qn("w:cr")):
-                append_text("\n")
+                append_text("\n", style)
             elif child.tag in (qn("w:drawing"), qn("w:pict"), qn("w:object")):
                 parts.extend(ParaPart(kind="image", rid=rid) for rid in _image_rids(child))
+            elif child.tag == qn("w:r"):
+                walk(child, run_style(child))
             elif child.tag == "{http://schemas.openxmlformats.org/markup-compatibility/2006}AlternateContent":
                 choice = child.find("{http://schemas.openxmlformats.org/markup-compatibility/2006}Choice")
                 fallback = child.find("{http://schemas.openxmlformats.org/markup-compatibility/2006}Fallback")
                 if choice is not None or fallback is not None:
-                    walk(choice if choice is not None else fallback)
+                    walk(choice if choice is not None else fallback, style)
             elif child.tag in (
-                qn("w:r"), qn("w:hyperlink"), qn("w:smartTag"), qn("w:ins"),
-                qn("w:fldSimple"), qn("w:customXml"), qn("w:sdt"), qn("w:sdtContent"),
+                qn("w:hyperlink"), qn("w:smartTag"), qn("w:ins"), qn("w:fldSimple"),
+                qn("w:customXml"), qn("w:sdt"), qn("w:sdtContent"),
             ):
-                walk(child)
+                walk(child, style)
 
     walk(p._p)
     return parts

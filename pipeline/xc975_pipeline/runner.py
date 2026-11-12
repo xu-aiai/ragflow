@@ -17,7 +17,7 @@ from pathlib import Path
 from .audit import AuditLog
 from .convert import convert_to_docx
 from .docmodel import parse_docx
-from .images import cell_image_files, extract_images
+from .images import cell_image_files, extract_images, image_dimensions
 from .numbering import cross_check_toc, extract_toc, inject_numbers
 from .package import package, write_json
 from .products.fault_codes import extract_fault_codes
@@ -225,6 +225,7 @@ def run_stages(input_path, doc_code: str, variant: str, version: str, runs_root,
         sections = build_tree(
             doc_code, elements, audit, image_files, literal=(mode == "literal"),
             merge_pairs=(overrides or {}).get("段落合并", []),
+            image_sizes=image_dimensions(run_dir / "img", image_files),
         )
         emit("step", 2, "切分章节树", 结果=f"生成 {len(sections)} 个章节")
         fault_codes = extract_fault_codes(elements, doc_code, variant, audit)

@@ -77,6 +77,10 @@ def inject_numbers(elements: list[Element], mode: str) -> list[str]:
     audit: list[str] = []
     if mode == "literal":
         body_started = False
+        scope_level = None
+        scope_number_depth = None
+        previous_number = None
+        previous_level = None
         for el in elements:
             if el.kind != "para" or el.para is None:
                 continue
@@ -102,6 +106,39 @@ def inject_numbers(elements: list[Element], mode: str) -> list[str]:
                 lvl = len(num.split("."))
             elif lvl is None:
                 lvl = len(num.split("."))
+            if num is not None:
+                absolute_level = len(num.split("."))
+                is_extension = previous_number is not None and num.startswith(previous_number + ".")
+                if absolute_level == 1 and not num.endswith(".0"):
+                    scope_level = None
+                    scope_number_depth = None
+                    lvl = 1
+                else:
+                    if (
+                        scope_level is not None
+                        and not num.endswith(".0")
+                        and not is_extension
+                        and absolute_level <= scope_level
+                        and num.split(".")[0] != previous_number.split(".")[0]
+                    ):
+                        scope_level = None
+                        scope_number_depth = None
+                        lvl = absolute_level
+                    else:
+                        if (
+                            scope_level is None
+                            and previous_number is not None
+                            and len(previous_number.split(".")) > 1
+                            and not is_extension
+                            and absolute_level <= previous_level
+                            and num.split(".")[0] != previous_number.split(".")[0]
+                        ):
+                            scope_level = previous_level
+                            scope_number_depth = absolute_level
+                        if scope_level is not None:
+                            lvl = scope_level + 1 + absolute_level - scope_number_depth
+                previous_number = num
+                previous_level = lvl
             if num is not None and heading_level(el.para.style) is not None:
                 body_started = True
             el.heading_level = lvl

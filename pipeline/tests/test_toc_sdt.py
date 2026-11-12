@@ -69,3 +69,62 @@ def test_toc_paragraphs_not_headings():
     inject_numbers(els, "literal")
     assert els[0].heading_level is None  # 目录段不当正文标题
     assert els[1].heading_level == 1 and els[1].编号 == "1"
+
+
+def test_literal_numbering_resets_to_local_chapter_scope():
+    els = [
+        Element("para", 0, para=Para(style="Heading 3", text="2.1.5 拆装说明")),
+        Element("para", 1, para=Para(style="Heading 3", text="§1.1 拆卸制动钳")),
+        Element("para", 2, para=Para(style="Heading 3", text="§1.2 拆卸轮边减速器")),
+        Element("para", 3, para=Para(style="Heading 4", text="1.2.1 拆卸轮边端盖")),
+        Element("para", 4, para=Para(style="Heading 2", text="§2.0 部件装配")),
+        Element("para", 5, para=Para(style="Heading 2", text="§3.0 总装配")),
+        Element("para", 6, para=Para(style="Heading 2", text="2.2 传动轴")),
+        Element("para", 7, para=Para(style="Subtitle", text="2.2.1 传动轴组成")),
+    ]
+
+    inject_numbers(els, "literal")
+
+    assert [el.heading_level for el in els] == [3, 4, 4, 5, 4, 4, 2, 3]
+
+
+def test_literal_local_numbering_keeps_siblings_at_same_level():
+    els = [
+        Element("para", 0, para=Para(style="Heading 3", text="2.1.5 拆装说明")),
+        Element("para", 1, para=Para(style="Heading 3", text="§1.2 拆卸轮边减速器")),
+        Element("para", 2, para=Para(style="Heading 4", text="1.2.1 拆卸轮边端盖")),
+        Element("para", 3, para=Para(style="Heading 4", text="1.2.2 拆卸行星轮架")),
+        Element("para", 4, para=Para(style="Heading 4", text="1.2.3 拆卸轮毂组件")),
+        Element("para", 5, para=Para(style="Heading 3", text="§1.3 拆卸主减速器总成")),
+        Element("para", 6, para=Para(style="Heading 4", text="1.3.1 拆卸差速器总成")),
+        Element("para", 7, para=Para(style="Heading 4", text="1.3.2 拆卸主动螺伞组件")),
+        Element("para", 8, para=Para(style="Heading 4", text="1.3.3 分解差速器总成")),
+    ]
+
+    inject_numbers(els, "literal")
+
+    assert [el.heading_level for el in els] == [3, 4, 5, 5, 5, 4, 5, 5, 5]
+
+
+def test_literal_scope_respects_global_chapter_numbers():
+    els = [
+        Element("para", 0, para=Para(style="Heading 2", text="1.9.4 端子取针器")),
+        Element("para", 1, para=Para(style="Heading 1", text="02 传动系统")),
+        Element("para", 2, para=Para(style="Heading 2", text="2.1 驱动桥")),
+        Element("para", 3, para=Para(style="Subtitle", text="2.1.1 结构、原理及功用")),
+        Element("para", 4, para=Para(style="Subtitle", text="2.1.4 使用、保养和简单修理")),
+        Element("para", 5, para=Para(style="Normal", text="2.1.4.1 生产安全")),
+        Element("para", 6, para=Para(style="Heading 3", text="2.1.5 拆装说明")),
+        Element("para", 7, para=Para(style="Heading 3", text="§1.1 拆卸制动钳")),
+        Element("para", 8, para=Para(style="Heading 3", text="§1.2 拆卸轮边减速器")),
+        Element("para", 9, para=Para(style="Heading 4", text="1.2.1 拆卸轮边端盖")),
+        Element("para", 10, para=Para(style="Heading 2", text="§2.0 部件装配")),
+        Element("para", 11, para=Para(style="Heading 2", text="2.1 组装轮毂总成")),
+        Element("para", 12, para=Para(style="Heading 2", text="2.6 安装差速器总成、调整齿隙")),
+        Element("para", 13, para=Para(style="Heading 2", text="§3.0 总装配")),
+        Element("para", 14, para=Para(style="Heading 2", text="2.2 传动轴")),
+    ]
+
+    inject_numbers(els, "literal")
+
+    assert [el.heading_level for el in els] == [3, 1, 2, 3, 3, 4, 3, 4, 4, 5, 4, 4, 4, 4, 2]

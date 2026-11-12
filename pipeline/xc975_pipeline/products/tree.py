@@ -9,14 +9,18 @@ from ..schemas import ImageBlock, ListBlock, ParaBlock, ParaImagePart, ParaTextP
 from ..tables import classify_table
 
 _LIST_RE = re.compile(r"^[●○·◆■□▲△]")
-_STEP_RE = re.compile(r"^\d+\s*[.、)]|^[①②③④⑤⑥⑦⑧⑨⑩]")
-_CAPTION_RE = re.compile(r"^(图\s*\d+[-–—~]\d+)")
+_STEP_RE = re.compile(r"^\d+\s*[.、)）]|^[①②③④⑤⑥⑦⑧⑨⑩]")
+_CAPTION_RE = re.compile(r"^(图\s*\d+(?:\s*[-–—~.．]\s*\d+)+)")
+_TABLE_CAPTION_RE = re.compile(r"^(表\s*\d+(?:\s*[-–—~.．]\s*\d+)+)")
+_WARNING_RE = re.compile(r"^[★☆]\s*(注意|警告|危险)\s*[:：]?\s*(.*)$")
+_OPERATION_HEADING_RE = re.compile(r"^[★☆]\s+(.+)$")
 _SENTENCE_END_RE = re.compile(r"[。！？；.!?;…][\"'”’）)]*$")
 
 
-def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge_pairs=None):
+def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge_pairs=None, image_sizes=None):
     """image_files: rId → 文件名（阶段 4 产物）。仅合并用户确认的段落边界。"""
     image_files = image_files or {}
+    image_sizes = image_sizes or {}
     sections: list[Section] = []
     stack: list[Section] = []
     seen_ids: set[str] = set()
@@ -44,11 +48,9 @@ def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge
             if el.编号:
                 sid = f"{doc_code}-{el.编号}"
                 if sid in seen_ids:
-                    # 编号重复（如 B 手册字面编号撞车）：id 是树挂接与深链的锚，
-                    # 重复即成环风险，进审核清单由人工确认，绝不静默放行。
-                    audit.add("文档树", f"section_id 重复：{sid}（{raw_title[:40]}）", sid)
-                else:
-                    seen_ids.add(sid)
+                    sid = f"{sid}@{el.index}"
+                    audit.add("文档树", f"章节号重复，合成唯一 ID {sid}：{raw_title[:40]}", sid)
+                seen_ids.add(sid)
             else:
                 sid = f"{doc_code}-U{len(sections) + 1:02d}"
                 audit.add("文档树", f"无编号标题，合成 ID {sid}：{raw_title[:40]}", sid)
@@ -83,7 +85,7 @@ def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge
             if kind == "warning":
                 sec.blocks.append(_warning_block(grid, el.index))
             elif kind == "layout":
-                _dissolve_layout(sec, el.table, image_files, audit, el.index)
+                _dissolve_layout(sec, el.table, image_files, audit, el.index, image_sizes)
             else:
                 sec.blocks.append(TableBlock(
                     header=grid[0], rows=grid[1:],
@@ -100,10 +102,10 @@ def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge
         if el.para.image_rids:
             close_pending()
             if text and any(part.kind == "image" for part in el.para.parts):
-                sec.blocks.append(_inline_para_block(sec, el.para, image_files, audit, el.index))
+                sec.blocks.append(_inline_para_block(sec, el.para, image_files, audit, el.index, image_sizes))
             else:
                 for rid in el.para.image_rids:
-                    _append_image(sec, rid, image_files, audit, el.index)
+                    _append_image(sec, rid, image_files, audit, el.index, image_sizes)
                 if text:
                     sec.blocks.append(ParaBlock(text=text, src=[el.index]))
             append_text_boxes(sec, el.para, el.index)
@@ -111,8 +113,9 @@ def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge
         # 题注并入前一个图片块
         m = _CAPTION_RE.match(text)
         if m and sec.blocks and isinstance(sec.blocks[-1], ImageBlock) and sec.blocks[-1].图号 is None:
-            sec.blocks[-1].图号 = m.group(1)
+            sec.blocks[-1].图号 = re.sub(r"\s+", "", m.group(1))
             sec.blocks[-1].题注 = text
+            sec.blocks[-1].src.append(el.index)
             append_text_boxes(sec, el.para, el.index)
             continue
         if _LIST_RE.match(text):
@@ -132,7 +135,7 @@ def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge
             append_text_boxes(sec, el.para, el.index)
             continue
         close_pending()
-        sec.blocks.append(ParaBlock(text=text, src=[el.index]))
+        sec.blocks.append(ParaBlock(text=text, parts=_formatted_text_parts(el.para), src=[el.index]))
         append_text_boxes(sec, el.para, el.index)
     close_pending()
     approved = {
@@ -141,7 +144,71 @@ def build_tree(doc_code, elements, audit, image_files=None, literal=False, merge
     }
     for section in sections:
         _merge_confirmed_paragraphs(section, elements, approved)
+        _enrich_blocks(section)
     return sections
+
+
+def _text_part(part) -> ParaTextPart:
+    return ParaTextPart(
+        text=part.text,
+        bold=part.bold,
+        italic=part.italic,
+        underline=part.underline,
+        vert_align=part.vert_align,
+    )
+
+
+def _formatted_text_parts(para) -> list[ParaTextPart]:
+    if not any(
+        part.kind == "text" and (part.bold or part.italic or part.underline or part.vert_align)
+        for part in para.parts
+    ):
+        return []
+    return [_text_part(part) for part in para.parts if part.kind == "text"]
+
+
+def _enrich_blocks(section: Section) -> None:
+    blocks = section.blocks
+    i = 0
+    while i < len(blocks):
+        block = blocks[i]
+        if not isinstance(block, ParaBlock):
+            i += 1
+            continue
+        text = block.text.strip()
+        labels = re.findall(r"图\s*([A-Za-z])(?=\s|$)", text)
+        following = blocks[i + 1:i + 1 + len(labels)]
+        if labels and len(following) == len(labels) and all(isinstance(item, ImageBlock) for item in following):
+            for image, label in zip(following, labels, strict=True):
+                image.图号 = f"图{label}"
+                image.题注 = image.图号
+                image.src = block.src + image.src
+            del blocks[i]
+            continue
+        table_caption = _TABLE_CAPTION_RE.match(text)
+        if table_caption and i + 1 < len(blocks) and isinstance(blocks[i + 1], TableBlock):
+            table = blocks[i + 1]
+            table.表号 = re.sub(r"\s+", "", table_caption.group(1))
+            table.题注 = text[table_caption.end():].strip(" \t-–—") or None
+            table.src = block.src + table.src
+            del blocks[i]
+            continue
+        warning = _WARNING_RE.match(text)
+        if warning:
+            enriched = WarningBlock(level=warning.group(1), text=warning.group(2).strip(), src=list(block.src))
+            if i + 1 < len(blocks) and isinstance(blocks[i + 1], StepsBlock):
+                steps = blocks[i + 1]
+                enriched.items = steps.items
+                enriched.src.extend(steps.src)
+                del blocks[i + 1]
+            blocks[i] = enriched
+            i += 1
+            continue
+        operation = _OPERATION_HEADING_RE.match(text)
+        if operation:
+            block.text = operation.group(1).strip()
+            block.role = "subheading"
+        i += 1
 
 
 def _is_continuation_text(previous_text: str, current_text: str) -> bool:
@@ -191,29 +258,29 @@ def _merge_confirmed_paragraphs(section: Section, elements, approved: set[tuple[
         del blocks[i]
 
 
-def _append_image(sec, rid, image_files, audit, src=None):
+def _append_image(sec, rid, image_files, audit, src=None, image_sizes=None):
     name = image_files.get(rid)
     if name:
-        sec.blocks.append(ImageBlock(file=name, src=[src] if src is not None else []))
+        sec.blocks.append(ImageBlock(file=name, **(image_sizes or {}).get(name, {}), src=[src] if src is not None else []))
     else:
         audit.add("图片", f"{sec.section_id} 图片 rId={rid} 未提取", sec.section_id)
 
 
-def _inline_para_block(sec, para, image_files, audit, src):
+def _inline_para_block(sec, para, image_files, audit, src, image_sizes):
     parts = []
     for part in para.parts:
         if part.kind == "text":
-            parts.append(ParaTextPart(text=part.text))
+            parts.append(_text_part(part))
             continue
         name = image_files.get(part.rid)
         if name:
-            parts.append(ParaImagePart(file=name))
+            parts.append(ParaImagePart(file=name, **image_sizes.get(name, {})))
         else:
             audit.add("图片", f"{sec.section_id} 图片 rId={part.rid} 未提取", sec.section_id)
     return ParaBlock(text=para.text.strip(), parts=parts, src=[src])
 
 
-def _dissolve_layout(sec, table, image_files, audit, src):
+def _dissolve_layout(sec, table, image_files, audit, src, image_sizes):
     """排版表溶解成段落 + 图（保持单元格顺序）。"""
     rids_grid = table.cell_rids
     for r, row in enumerate(table.grid):
@@ -223,7 +290,7 @@ def _dissolve_layout(sec, table, image_files, audit, src):
                 sec.blocks.append(ParaBlock(text=text, src=[src]))
             rids = rids_grid[r][c] if r < len(rids_grid) and c < len(rids_grid[r]) else []
             for rid in rids:
-                _append_image(sec, rid, image_files, audit, src)
+                _append_image(sec, rid, image_files, audit, src, image_sizes)
 
 
 def _warning_block(grid, src):
