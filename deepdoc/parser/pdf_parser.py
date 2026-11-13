@@ -15,6 +15,7 @@
 #
 
 import asyncio
+import gc
 import logging
 import math
 import os
@@ -1818,12 +1819,38 @@ class RAGFlowPdfParser:
             batch_size,
         )
         all_boxes = []
+        retained_image_types = {
+            item.strip().lower()
+            for item in os.getenv("PDF_PARSER_RETAIN_IMAGE_TYPES", "").split(",")
+            if item.strip()
+        }
         start = timer()
         for page_from in range(from_page, effective_to_page, batch_size):
+            chunk_started = timer()
             page_to = min(page_from + batch_size, effective_to_page)
             self.__images__(fnm, zoomin, page_from=page_from, page_to=page_to, callback=None)
             chunk_boxes = self._parse_loaded_window_into_bboxes(zoomin)
-            all_boxes.extend(self._to_global_boxes(chunk_boxes))
+            global_boxes = self._to_global_boxes(chunk_boxes)
+            if retained_image_types:
+                for box in global_boxes:
+                    if str(box.get("layout_type", "")).strip().lower() not in retained_image_types:
+                        box["image"] = None
+                for box in self.boxes:
+                    if str(box.get("layout_type", "")).strip().lower() not in retained_image_types:
+                        box["image"] = None
+            all_boxes.extend(global_boxes)
+            retained_regions = sum(box.get("image") is not None for box in global_boxes)
+            logging.info(
+                "parse_into_bboxes batch completed: pages=%s-%s cost=%.2fs boxes=%s retained_regions=%s total_boxes=%s",
+                page_from + 1,
+                page_to,
+                timer() - chunk_started,
+                len(global_boxes),
+                retained_regions,
+                len(all_boxes),
+            )
+            del chunk_boxes, global_boxes
+            gc.collect()
             if callback:
                 callback((page_to - from_page) / max(1, effective_to_page - from_page), f"Structured: {page_to}/{effective_to_page} pages")
 

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>徐工手册文档解析</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/manual-parser.css">
+  <style>
+    .document-actions button{font-size:12px;padding:7px 10px;border:0;border-radius:6px;cursor:pointer}
+    .document-actions button.danger{color:var(--danger);background:#fff0f1}
+    .status-pill.cancelled,.status-pill.interrupted{color:var(--danger)}
+    .status-pill.cancelling{color:var(--blue)}
+    .structure-tree{padding:14px 18px 40px}.structure-tree ul{list-style:none;margin:4px 0 4px 16px;padding-left:12px;border-left:1px solid #e4e7ef}.structure-tree button{display:block;width:100%;padding:7px 8px;border:0;background:transparent;text-align:left;color:#323747;cursor:pointer;border-radius:6px}.structure-tree button:hover{background:#f1f4ff}.structure-tree small{margin-left:8px;color:#9298aa}
+    .block-details{margin-top:9px;font-size:12px;color:#71788c}.block-details summary{cursor:pointer}.block-details pre{white-space:pre-wrap;word-break:break-all;background:#f6f7fb;padding:8px;border-radius:6px}.section-path{margin:6px 0;color:#747b90;font-size:12px}.integrity-badge{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:10px;font-size:11px}.integrity-badge.verified{color:#17734b;background:#e9f8f0}.integrity-badge.review_required{color:#9a6500;background:#fff5d9}.integrity-badge.unsafe{color:#b42335;background:#ffebee}.parsed-block.safety_notice{border-left:4px solid #e39a00;background:#fff9e9}.parsed-block.list_item{padding-left:30px}.list-marker{display:inline-block;min-width:24px;margin-left:-24px}.page-label{color:#747b90;font-size:12px;margin-left:8px}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">X</span><div><strong>徐工手册文档解析</strong><small>DeepDOC × OOXML × Region VLM</small></div></div>
+    <div class="pipeline-state" id="pipelineState"><span class="dot"></span><span>服务就绪</span></div>
+  </header>
+  <main class="shell">
+    <aside class="sidebar">
+      <button class="upload-button" id="uploadButton"><span>＋</span> 新解析</button>
+      <input id="fileInput" type="file" accept=".pdf,.doc,.docx" hidden>
+      <div class="drop-zone" id="dropZone"><strong>拖入公司手册</strong><span>PDF / DOC / DOCX，最大 500MB</span></div>
+      <div class="recent-title"><span>最近解析</span><button id="refreshButton" title="刷新">↻</button></div>
+      <div class="job-list" id="jobList"><div class="empty">暂无文档</div></div>
+    </aside>
+    <section class="workspace">
+      <div class="empty-workspace" id="emptyWorkspace">
+        <div class="empty-icon">文</div>
+        <h1>上传一本手册开始解析</h1>
+        <p>系统会自动执行格式统一、DeepDOC 版面分析、OOXML 结构融合、区域视觉理解和公司手册重建。</p>
+      </div>
+      <div class="workbench hidden" id="workbench">
+        <div class="document-bar">
+          <div><strong id="documentName"></strong><span id="documentMeta"></span></div>
+          <div class="document-actions">
+            <button class="danger hidden" id="cancelJob">取消解析</button>
+            <button class="danger hidden" id="deleteJob">删除任务</button>
+            <a id="downloadPackage">解析包</a><a id="downloadMarkdown">Markdown</a><a id="downloadJson">JSON</a>
+          </div>
+        </div>
+        <div class="status-strip hidden" id="statusStrip"><div class="progress-track"><div id="progressBar"></div></div><span id="progressText"></span></div>
+        <div class="panes">
+          <section class="pane source-pane">
+            <div class="pane-head"><strong>源文件</strong><div class="page-controls"><button id="prevPage">‹</button><span><input id="pageNumber" value="1"> / <b id="pageCount">1</b><span class="page-label" id="printedPageLabel"></span></span><button id="nextPage">›</button><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button></div></div>
+            <div class="page-stage" id="pageStage"><div class="paper" id="paper"><img id="pageImage"><div id="overlay"></div></div></div>
+          </section>
+          <section class="pane result-pane">
+            <div class="pane-head"><div class="tabs"><button class="active" data-tab="document">文档解析</button><button data-tab="structure">结构树</button><button data-tab="json">JSON</button><button data-tab="issues">复核项 <em id="issueCount">0</em></button></div><div class="page-controls" id="resultPageControls"><button id="resultPrevPage">‹</button><span><input id="resultPageNumber" value="1"> / <b id="resultPageCount">1</b></span><button id="resultNextPage">›</button></div><label class="overlay-toggle"><input id="overlayToggle" type="checkbox" checked> 坐标框</label></div>
+            <div class="result-scroll" id="documentResult"></div>
+            <div class="result-scroll hidden structure-tree" id="structureResult"></div>
+            <pre class="result-scroll hidden json-result" id="jsonResult"></pre>
+            <div class="result-scroll hidden issues-result" id="issuesResult"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div class="toast hidden" id="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

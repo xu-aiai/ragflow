@@ -1,0 +1,38 @@
+services:
+  manual-parser:
+    environment:
+      MANUAL_PARSER_VLM_ENDPOINT: "http://paddleocr-vl-api:8080/layout-parsing"
+      MANUAL_PARSER_VLM_MODEL: "PaddleOCR-VL-1.6-0.9B"
+    depends_on:
+      paddleocr-vl-api:
+        condition: service_healthy
+
+  paddleocr-vl-api:
+    image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/paddlepaddle/paddleocr-vl:latest-nvidia-gpu
+    depends_on:
+      paddleocr-vlm-server:
+        condition: service_healthy
+    environment:
+      VLM_BACKEND: vllm
+    command: /bin/bash -c "paddlex --serve --pipeline /home/paddleocr/pipeline_config_vllm.yaml"
+    gpus: all
+    shm_size: "16gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 180s
+
+  paddleocr-vlm-server:
+    image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/paddlepaddle/paddleocr-genai-vllm-server:latest-nvidia-gpu
+    gpus: all
+    shm_size: "16gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 300s

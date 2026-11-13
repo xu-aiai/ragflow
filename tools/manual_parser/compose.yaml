@@ -1,0 +1,31 @@
+services:
+  manual-parser:
+    build:
+      context: ../..
+      dockerfile: tools/manual_parser/Dockerfile
+    image: xcmg/manual-parser:0.1
+    container_name: xcmg-manual-parser
+    ports:
+      - "9392:9392"
+    environment:
+      MANUAL_PARSER_WORKERS: "1"
+      MANUAL_PARSER_MAX_UPLOAD_MB: "500"
+      # Selective region-image retention bounds memory across the whole manual;
+      # 30-page windows avoid repeatedly paying DeepDOC's model-stage overhead.
+      PDF_PARSER_PAGE_BATCH_SIZE: "30"
+      PDF_PARSER_RETAIN_IMAGE_TYPES: "table,figure,image,equation,title,document title"
+      # Set the complete /v1/chat/completions URL when the fixed region-VLM
+      # stage is deployed. The rest of the pipeline remains fully runnable.
+      MANUAL_PARSER_VLM_ENDPOINT: "${MANUAL_PARSER_VLM_ENDPOINT:-}"
+      MANUAL_PARSER_VLM_API_KEY: "${MANUAL_PARSER_VLM_API_KEY:-}"
+      MANUAL_PARSER_VLM_MODEL: "${MANUAL_PARSER_VLM_MODEL:-PaddleOCR-VL-1.6-0.9B}"
+    volumes:
+      - manual-parser-data:/data
+      # Put company-authorized TTF/OTF/TTC files in ./fonts when exact Word
+      # pagination depends on proprietary fonts such as SimSun/YaHei.
+      - ./fonts:/usr/local/share/fonts/company:ro
+    restart: unless-stopped
+    shm_size: "2gb"
+
+volumes:
+  manual-parser-data:

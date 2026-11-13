@@ -1,0 +1,49 @@
+.table-trust-warning {
+  margin: 7px 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.table-trust-warning.unsafe {
+  color: #9e2230;
+  background: #ffebee;
+  border: 1px solid #f2bcc3;
+}
+
+.table-trust-warning.review_required {
+  color: #805700;
+  background: #fff5d9;
+  border: 1px solid #f0d68a;
+}
+
+.figure-search-text {
+  color: #596074;
+  background: #f6f7fb;
+  padding: 7px 9px;
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.inline-parts {
+  white-space: pre-wrap;
+}
+
+.inline-part-image {
+  display: inline-block;
+  max-width: min(180px, 100%);
+  max-height: 120px;
+  margin: 2px 5px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+.table-cell-image {
+  display: block;
+  max-width: 100%;
+  max-height: 150px;
+  margin: 5px auto;
+  object-fit: contain;
+}
